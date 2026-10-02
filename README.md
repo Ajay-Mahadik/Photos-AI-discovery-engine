@@ -16,7 +16,7 @@ Instead of relying on users to repair metadata, this project proposes a visual s
 * **Frontend:** Streamlit (Python), Pandas, Google Material Design 3 UI.
 * **Backend Pipeline:** n8n (Workflow Automation).
 * **AI Engine:** Google Gemini API (for semantic classification and severity mapping).
-* **Data Ingestion:** SerpApi (scraping Reddit and App Store reviews).
+* **Data Ingestion:** SerpApi & SearchApi (scraping Reddit and App Store reviews).
 * **Database:** Google Sheets (Live CSV export).
 
 ## 📂 Repository Contents
