@@ -97,43 +97,43 @@ if not df.empty:
     with tab_insights:
         st.markdown("<h3 style='color: #202124; font-size: 20px; font-weight: 500;'>Core Retrieval Breakdown</h3>", unsafe_allow_html=True)
         
-        # Original Executive Insights
+        # Executive Insights
         st.markdown("""
-        * **Episodic Memories Dominate:** **77%** of retrieval friction stems from users trying to find photos based on life events, trips, or emotions, rather than exact dates.
-        * **The Chronological Failure:** **23.5%** of failures are caused by missing or broken chronological EXIF data, breaking the primary timeline scroll.
-        * **High Friction Fallbacks:** When search fails, **13.5%** of users resort to manual grid scrubbing, leading to severe frustration and churn threats.
+        * **The Metadata Mismatch:** **23.5%** of failures stem from broken chronological EXIF data caused by third-party sharing (WhatsApp, AirDrop) overwriting original capture dates.
+        * **Episodic Memories Dominate:** **77%** of retrieval friction stems from users trying to find these specific life events using visual or contextual memory, rather than exact transfer dates.
+        * **The Compute & Churn Tax:** When search fails, **13.5%** of users resort to high-friction manual grid scrubbing, heavily taxing cloud compute infrastructure (thumbnail rendering) and degrading platform trust.
         """)
         
-        st.write("---")
+        st.write("---") 
         
         # Deep Dive Questions
-        st.markdown("<h4 style='color: #202124; font-size: 18px; font-weight: 500;'>Deep Dive: Discovery Questions</h4>", unsafe_allow_html=True)
-        st.write("We synthesized the user friction logs to answer the core discovery questions for the NextLeap PM project:")
+        st.markdown("<h4 style='color: #202124; font-size: 18px; font-weight: 500;'>Deep Dive: The Episodic Memory Problem</h4>", unsafe_allow_html=True)
+        st.write("We synthesized valid friction logs to diagnose the architectural gap between human memory and metadata-driven search:")
         st.write("")
         
         with st.expander("1. What kinds of old photos do users struggle to retrieve?"):
-            st.write("Users primarily struggle with **Episodic Experiences (77.0%)**. These are specific family milestones, travel memories, or emotional moments where the user remembers the *context* of the photo, but lacks the exact technical identifiers required by traditional search.")
+            st.write("Users primarily struggle with retrieving shared **Episodic Experiences (77.0%)**. These are specific life events (e.g., weddings, trips) where the user was present but received the media retroactively via third-party platforms like WhatsApp or AirDrop, breaking the continuity of their primary timeline.")
             
         with st.expander("2. What information do people actually remember about a photo?"):
-            st.write("Users retain contextual and visual anchors. The most common retained memories are visual characteristics (10.4%), co-occurring people/faces (10.2%), and emotional significance (8.2%). They remember *what* the photo felt like or looked like, not *when* it was taken.")
+            st.write("Users retain contextual, multi-variable visual anchors. The most common retained memories are visual characteristics (10.4%), co-occurring people/faces (10.2%), and emotional significance (8.2%). They remember the *cast of characters* and the *wardrobe/environment*, not the exact date the file was saved.")
             
         with st.expander("3. What information have they forgotten (or what metadata broke down)?"):
-            st.write("The primary failure point is **chronological metadata (23.5%)**. Users forget exact dates, or EXIF data is stripped during external backups and downloads. Because the primary gallery is optimized for a timeline scroll, this missing chronological anchor completely breaks the retrieval loop.")
+            st.write("The primary failure point is the **Metadata vs. Episodic Memory Mismatch** driven by chronological metadata failure (23.5%). When photos are downloaded via messaging apps, the original capture date is overwritten by the transfer date. The system indexes the photo in the wrong temporal cluster, rendering it invisible to chronological searches.")
             
         with st.expander("4. How do users formulate searches when their memory is incomplete?"):
-            st.write("Users attempt vague, descriptive keyword searches based on sentiment or physical context. Because current search architectures expect rigid entity nouns, these descriptive queries fail.")
+            st.write("Users attempt broad, descriptive episodic searches (e.g., *'Goa trip with Rahul'*). Because current search architectures rigidly cross-reference keywords with localized EXIF temporal data, the system successfully finds the photos the user took natively, but completely filters out the visually related WhatsApp photos downloaded weeks later.")
             
         with st.expander("5. What are the most common fallback behaviors when search fails?"):
-            st.write("The dominant fallback is **manual timeline grid scrubbing (13.5%)**, followed by desperate, multi-keyword guessing (8.4%). Both are highly repetitive, high-effort actions that rapidly exhaust the user.")
+            st.write("The dominant fallback is high-friction manual timeline grid scrubbing (13.5%), followed by deep-diving into unorganized, local device folders like 'WhatsApp Images.' Users spend up to 30 minutes manually scanning for visual patterns because they no longer trust the search bar to handle temporal desyncs.")
             
         with st.expander("6. What is the business cost of these retrieval failures?"):
-            st.write("The friction is severe. **84.2% of all classified retrieval issues are marked as High Severity**. When users hit a memory dead-end and are forced to scrub the grid manually, it leads to direct complaints and explicit threats to abandon the platform.")
+            st.write("The friction is severe, with **84.2% of all classified retrieval issues marked as High Severity**. When users are forced into manual 15-minute scrolling sessions, it heavily taxes cloud compute infrastructure (rendering thousands of thumbnails) and severely degrades user trust, pushing them to view the app as a dumping ground rather than an intelligent memory assistant.")
             
         with st.expander("7. Is this friction isolated to a specific operating system or cohort?"):
-            st.write("No. While our primary data volume came from Android users (87.5%), severe episodic retrieval failures are structurally identical across the Apple App Store and Reddit communities. It is a universal human memory problem, not a localized OS bug.")
+            st.write("No. While our primary data volume came from Android users (87.5%), this is a universal cross-platform failure. The friction is inherently driven by the interoperability of social sharing (e.g., iOS users AirDropping to Android, or WhatsApp compressing metadata globally), making it a universal structural flaw in how modern media is distributed.")
             
         with st.expander("8. What is the strategic opportunity area?"):
-            st.write("Building an **Episodic AI Anchor**. Instead of trying to repair broken EXIF metadata, the highest impact opportunity is building a conversational interface that successfully parses vague, context-heavy memory prompts.")
+            st.write("Building the **Episodic AI Anchor**. Instead of relying on users to repair metadata or organize albums, the opportunity is deploying a visual semantic clustering engine. By evaluating multi-variable visual bridges (matching wardrobe, faces, and environment), the AI can confidently bypass broken EXIF transfer dates, dynamically grouping disjointed media back into its true original episode.")
 
     with tab_dashboard:
         st.markdown("<h3 style='color: #202124; font-size: 20px; font-weight: 500;'>Friction Severity by Archetype</h3>", unsafe_allow_html=True)
