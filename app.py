@@ -96,7 +96,19 @@ if not df.empty:
 
     with tab_insights:
         st.markdown("<h3 style='color: #202124; font-size: 20px; font-weight: 500;'>Core Retrieval Breakdown</h3>", unsafe_allow_html=True)
-        st.write("We synthesized user friction logs to answer the core discovery questions for the NextLeap PM project:")
+        
+        # Original Executive Insights
+        st.markdown("""
+        * **Episodic Memories Dominate:** **77%** of retrieval friction stems from users trying to find photos based on life events, trips, or emotions, rather than exact dates.
+        * **The Chronological Failure:** **23.5%** of failures are caused by missing or broken chronological EXIF data, breaking the primary timeline scroll.
+        * **High Friction Fallbacks:** When search fails, **13.5%** of users resort to manual grid scrubbing, leading to severe frustration and churn threats.
+        """)
+        
+        st.write("---")
+        
+        # Deep Dive Questions
+        st.markdown("<h4 style='color: #202124; font-size: 18px; font-weight: 500;'>Deep Dive: Discovery Questions</h4>", unsafe_allow_html=True)
+        st.write("We synthesized the user friction logs to answer the core discovery questions for the NextLeap PM project:")
         st.write("")
         
         with st.expander("1. What kinds of old photos do users struggle to retrieve?"):
