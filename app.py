@@ -1,9 +1,10 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 import requests
 
 # 1. Page Configuration
-st.set_page_config(page_title="Photos Discovery Engine", layout="centered")
+st.set_page_config(page_title="Photos Discovery Engine", layout="wide")
 
 # 2. Material Design 3 Custom CSS
 st.markdown("""
@@ -28,6 +29,18 @@ st.markdown("""
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+}
+.chart-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #202124;
+    margin-bottom: 2px;
+}
+.chart-subtitle {
+    font-size: 13px;
+    color: #5f6368;
+    margin-bottom: 16px;
+    line-height: 1.4;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -73,7 +86,7 @@ col4.markdown(f"<div class='google-card'><div class='google-metric'>{app_store_c
 st.write("") 
 
 # 7. Responsive Action Buttons
-btn_col1, btn_col2, _ = st.columns([3, 4, 5])
+btn_col1, btn_col2, _ = st.columns([2, 2.5, 6])
 with btn_col1:
     if st.button("Update summary", use_container_width=True):
         st.cache_data.clear()
@@ -82,7 +95,6 @@ with btn_col1:
 with btn_col2:
     if st.button("Check for new comments", type="primary", use_container_width=True):
         try:
-            # If using ngrok to connect to local n8n, uncomment the line below and add your URL:
             # requests.post("https://YOUR-NGROK-URL.ngrok-free.app/webhook/episodic-search")
             st.toast("Triggering n8n pipeline...")
         except Exception as e:
@@ -92,13 +104,13 @@ st.write("---")
 
 # 8. Interactive Tabs
 if not df.empty:
-    tab_insights, tab_dashboard, tab_evidence = st.tabs(["Insights", "Dashboard", "Raw Evidence"])
+    tab_insights, tab_dashboard, tab_evidence, tab_architecture = st.tabs(["Insights", "Quantitative Dashboard", "Raw Evidence", "How it Works"])
 
+    # --- INSIGHTS TAB ---
     with tab_insights:
         st.markdown("<h3 style='color: #202124; font-size: 20px; font-weight: 500;'>Core Retrieval Breakdown</h3>", unsafe_allow_html=True)
         
-        # Executive Insights
-        st.markdown("""
+        st.markdown(f"""
         * **The Metadata Mismatch:** **23.5%** of failures stem from broken chronological EXIF data caused by third-party sharing (WhatsApp, AirDrop) overwriting original capture dates.
         * **Episodic Memories Dominate:** **77%** of retrieval friction stems from users trying to find these specific life events using visual or contextual memory, rather than exact transfer dates.
         * **The Compute & Churn Tax:** When search fails, **13.5%** of users resort to high-friction manual grid scrubbing, heavily taxing cloud compute infrastructure (thumbnail rendering) and degrading platform trust.
@@ -106,9 +118,8 @@ if not df.empty:
         
         st.write("---") 
         
-        # Deep Dive Questions
         st.markdown("<h4 style='color: #202124; font-size: 18px; font-weight: 500;'>Deep Dive: The Episodic Memory Problem</h4>", unsafe_allow_html=True)
-        st.write("We synthesized valid friction logs to diagnose the architectural gap between human memory and metadata-driven search:")
+        st.write(f"We synthesized {total_comments} valid friction logs to diagnose the architectural gap between human memory and metadata-driven search:")
         st.write("")
         
         with st.expander("1. What kinds of old photos do users struggle to retrieve?"):
@@ -135,25 +146,111 @@ if not df.empty:
         with st.expander("8. What is the strategic opportunity area?"):
             st.write("Building the **Episodic AI Anchor**. Instead of relying on users to repair metadata or organize albums, the opportunity is deploying a visual semantic clustering engine. By evaluating multi-variable visual bridges (matching wardrobe, faces, and environment), the AI can confidently bypass broken EXIF transfer dates, dynamically grouping disjointed media back into its true original episode.")
 
+    # --- DASHBOARD TAB ---
     with tab_dashboard:
-        st.markdown("<h3 style='color: #202124; font-size: 20px; font-weight: 500;'>Friction Severity by Archetype</h3>", unsafe_allow_html=True)
-        if 'Archetype' in df.columns and 'Friction_Severity' in df.columns:
-            severity_distribution = df.groupby(['Archetype', 'Friction_Severity']).size().unstack(fill_value=0)
-            
-            # Ensure logical column ordering if all columns exist
-            if set(['High', 'Medium', 'Low']).issubset(severity_distribution.columns):
-                severity_distribution = severity_distribution[['High', 'Medium', 'Low']]
-                
-            st.bar_chart(severity_distribution)
-        else:
-            st.warning("Awaiting correct columns to render chart.")
-
-    with tab_evidence:
-        st.markdown("<h3 style='color: #202124; font-size: 20px; font-weight: 500;'>Read the raw user complaints</h3>", unsafe_allow_html=True)
         if 'Archetype' in df.columns:
-            selected_archetype = st.selectbox("Filter quotes by archetype:", df['Archetype'].unique())
+            col_chart1, col_chart2 = st.columns(2)
+
+            with col_chart1:
+                st.markdown("<div class='chart-title'>Primary Retrieval Failures by Archetype</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='chart-subtitle'>Episodic memory failures make up the vast majority of search friction. Slice labels show the share of comments deduced from the {total_comments} valid logs.</div>", unsafe_allow_html=True)
+                
+                archetype_counts = df['Archetype'].value_counts().reset_index()
+                archetype_counts.columns = ['Archetype', 'Count']
+                fig_pie1 = px.pie(archetype_counts, values='Count', names='Archetype', hole=0.5, 
+                                  color_discrete_sequence=['#1a73e8', '#34a853', '#fbbc05'])
+                fig_pie1.update_traces(textposition='inside', textinfo='percent+label')
+                fig_pie1.update_layout(margin=dict(t=0, b=0, l=0, r=0), height=300, showlegend=False)
+                st.plotly_chart(fig_pie1, use_container_width=True)
+
+            with col_chart2:
+                st.markdown("<div class='chart-title'>How Severe is the User Friction?</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='chart-subtitle'>Red = High Severity (churn threat) · Yellow = Medium · Green = Low. Bars show the concentration of severe frustration across the {total_comments} analyzed reviews.</div>", unsafe_allow_html=True)
+                
+                if 'Friction_Severity' in df.columns:
+                    severity_dist = df.groupby(['Archetype', 'Friction_Severity']).size().reset_index(name='Count')
+                    fig_bar1 = px.bar(severity_dist, x='Archetype', y='Count', color='Friction_Severity',
+                                      color_discrete_map={'High': '#ea4335', 'Medium': '#fbbc05', 'Low': '#34a853'},
+                                      barmode='group')
+                    fig_bar1.update_layout(margin=dict(t=0, b=0, l=0, r=0), height=300, xaxis_title="", yaxis_title="", legend_title="")
+                    st.plotly_chart(fig_bar1, use_container_width=True)
+
+            st.write("---")
+            
+            col_chart3, col_chart4 = st.columns(2)
+
+            with col_chart3:
+                st.markdown("<div class='chart-title'>The Metadata Gap (Root Causes)</div>", unsafe_allow_html=True)
+                st.markdown("<div class='chart-subtitle'>Longer bars = the metadata type most frequently lost, overwritten, or forgotten by users across the classified dataset.</div>", unsafe_allow_html=True)
+                
+                if 'Forgotten_Metadata' in df.columns:
+                    df['Forgotten_Metadata'] = df['Forgotten_Metadata'].astype(str)
+                    meta_split = df['Forgotten_Metadata'].str.split(', ').explode()
+                    meta_split = meta_split[meta_split != 'None mentioned']
+                    meta_counts = meta_split.value_counts().head(5).reset_index()
+                    meta_counts.columns = ['Metadata', 'Volume']
+                    
+                    fig_bar2 = px.bar(meta_counts, x='Volume', y='Metadata', orientation='h', 
+                                      color_discrete_sequence=['#1a73e8'])
+                    fig_bar2.update_layout(margin=dict(t=0, b=0, l=0, r=0), height=300, xaxis_title="", yaxis_title="", yaxis={'categoryorder':'total ascending'})
+                    st.plotly_chart(fig_bar2, use_container_width=True)
+
+            with col_chart4:
+                st.markdown("<div class='chart-title'>Where the comments came from</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='chart-subtitle'>Play Store makes up most of the dataset. Reddit was sampled to capture power-user workflows. Deduced from {total_comments} raw comments.</div>", unsafe_allow_html=True)
+                
+                if 'Source' in df.columns:
+                    source_counts = df['Source'].value_counts().reset_index()
+                    source_counts.columns = ['Source', 'Count']
+                    fig_pie2 = px.pie(source_counts, values='Count', names='Source', hole=0.5,
+                                      color_discrete_map={'Google Play Store': '#fbbc05', 'Apple App Store': '#1a73e8', 'Reddit (SerpApi)': '#ff4500'})
+                    fig_pie2.update_traces(textposition='inside', textinfo='percent+label')
+                    fig_pie2.update_layout(margin=dict(t=0, b=0, l=0, r=0), height=300, showlegend=False)
+                    st.plotly_chart(fig_pie2, use_container_width=True)
+        else:
+            st.warning("Awaiting data columns to render charts.")
+
+    # --- RAW EVIDENCE TAB ---
+    with tab_evidence:
+        st.markdown("<h3 style='color: #202124; font-size: 20px; font-weight: 500;'>Raw User Feedback Log</h3>", unsafe_allow_html=True)
+        if 'Archetype' in df.columns:
+            selected_archetype = st.selectbox("Filter quotes by problem cluster:", df['Archetype'].unique())
             display_cols = [col for col in ['Friction_Severity', 'Raw_Text', 'Forgotten_Metadata', 'Fallback_Behavior'] if col in df.columns]
             filtered_quotes = df[df['Archetype'] == selected_archetype][display_cols]
             
-            # Display dataframe taking full width
             st.dataframe(filtered_quotes, use_container_width=True, hide_index=True)
+            
+    # --- HOW IT WORKS TAB (ARCHITECTURE) ---
+    with tab_architecture:
+        st.markdown("<h3 style='color: #202124; font-size: 20px; font-weight: 500;'>System Architecture</h3>", unsafe_allow_html=True)
+        st.write("This dashboard is powered by a decoupled full-stack data pipeline. An automated backend handles data ingestion and AI evaluation, a cloud database stores the insights, and a stateless frontend visualizes the metrics.")
+        
+        link_col1, link_col2, _ = st.columns([2, 2, 6])
+        with link_col1:
+            st.link_button("View Live Database (Google Sheets)", "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ72lib3473xj0WxWVDqpSS8kpqI6UPee3oCBSW90Mj6A5cPUnEk_8rnZD3v0AeG4CtUAowG7kUDXa7/pub?gid=402859117&single=true&output=csv", use_container_width=True)
+        with link_col2:
+            st.link_button("View Source Code (GitHub)", "https://github.com/Ajay-Mahadik/Photos-AI-discovery-engine", use_container_width=True)
+            
+        st.write("")
+        
+        # NOTE: Ensure "Screenshot 2026-10-02 173519.png" is uploaded to your GitHub repo!
+        try:
+            st.image("Screenshot 2026-10-02 173519.png", caption="n8n Automated Data Pipeline & AI Discovery Engine")
+        except:
+            st.info("Upload 'Screenshot 2026-10-02 173519.png' to your GitHub repository to render the architecture diagram here.")
+            
+        st.markdown("<h4 style='color: #202124; font-size: 18px; font-weight: 500; margin-top: 16px;'>1. Backend: n8n AI Discovery Engine</h4>", unsafe_allow_html=True)
+        st.markdown("""
+        * **Ingestion:** The pipeline triggers and concurrently fetches raw user reviews from the Play Store, App Store, and Reddit via REST APIs.
+        * **Formatting & Merging:** The raw JSON payloads are formatted into a standardized structure and merged into a single chronological data stream.
+        * **Deduplication:** The system fetches previously stored IDs from Google Sheets to cross-reference new data. An "If" node filters the data to ensure only net-new reviews are processed, conserving AI token costs.
+        * **AI Processing & Rate-Limit Mitigation:** A loop iterates through the new items, sending each raw review to the Gemini API for semantic classification (Archetype, Missing Metadata, Friction Severity). *Architectural Note: This iterative loop was intentionally designed to respect the rate limits of the free-tier Gemini API. In a production environment with an enterprise billing tier, this loop would be bypassed in favor of high-throughput bulk processing to minimize pipeline latency.*
+        * **Database Storage:** The formatted AI outputs are appended directly to the `Clean AI insights` and `Updated Raw_Data` tabs in Google Sheets.
+        """)
+        
+        st.markdown("<h4 style='color: #202124; font-size: 18px; font-weight: 500; margin-top: 16px;'>2. Frontend: Streamlit Cloud</h4>", unsafe_allow_html=True)
+        st.markdown("""
+        * **Stateless Presentation Layer:** The app is deployed via Streamlit Community Cloud and directly tied to the GitHub repository. It does not run heavy ML models locally. 
+        * **Live Syncing:** Using Python's `pandas` library, the frontend fetches the live Google Sheets CSV link. 
+        * **Caching:** Data is cached in the cloud for 60 seconds (`@st.cache_data(ttl=60)`) to ensure fast UI loading times while remaining strictly synced with the backend n8n pipeline.
+        """)
