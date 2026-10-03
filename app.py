@@ -149,6 +149,7 @@ if not df.empty:
     # --- DASHBOARD TAB ---
     with tab_dashboard:
         if 'Archetype' in df.columns:
+            # ROW 1: Archetypes and Severity
             col_chart1, col_chart2 = st.columns(2)
 
             with col_chart1:
@@ -177,27 +178,12 @@ if not df.empty:
 
             st.write("---")
             
-            col_chart3, col_chart4 = st.columns(2)
+            # ROW 2: Centered Source Platform Breakdown
+            _, col_centered, _ = st.columns([1, 2, 1])
 
-            with col_chart3:
-                st.markdown("<div class='chart-title'>The Metadata Gap (Root Causes)</div>", unsafe_allow_html=True)
-                st.markdown("<div class='chart-subtitle'>Longer bars = the metadata type most frequently lost, overwritten, or forgotten by users across the classified dataset.</div>", unsafe_allow_html=True)
-                
-                if 'Forgotten_Metadata' in df.columns:
-                    df['Forgotten_Metadata'] = df['Forgotten_Metadata'].astype(str)
-                    meta_split = df['Forgotten_Metadata'].str.split(', ').explode()
-                    meta_split = meta_split[meta_split != 'None mentioned']
-                    meta_counts = meta_split.value_counts().head(5).reset_index()
-                    meta_counts.columns = ['Metadata', 'Volume']
-                    
-                    fig_bar2 = px.bar(meta_counts, x='Volume', y='Metadata', orientation='h', 
-                                      color_discrete_sequence=['#1a73e8'])
-                    fig_bar2.update_layout(margin=dict(t=0, b=0, l=0, r=0), height=300, xaxis_title="", yaxis_title="", yaxis={'categoryorder':'total ascending'})
-                    st.plotly_chart(fig_bar2, use_container_width=True)
-
-            with col_chart4:
-                st.markdown("<div class='chart-title'>Where the comments came from</div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='chart-subtitle'>Play Store makes up most of the dataset. Reddit was sampled to capture power-user workflows. Deduced from {total_comments} raw comments.</div>", unsafe_allow_html=True)
+            with col_centered:
+                st.markdown("<div class='chart-title' style='text-align: center;'>Where the comments came from</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='chart-subtitle' style='text-align: center;'>Play Store makes up most of the dataset. Reddit was sampled to capture power-user workflows. Deduced from {total_comments} raw comments.</div>", unsafe_allow_html=True)
                 
                 if 'Source' in df.columns:
                     source_counts = df['Source'].value_counts().reset_index()
@@ -233,7 +219,6 @@ if not df.empty:
             
         st.write("")
         
-        # NOTE: Ensure "Screenshot 2026-10-02 173519.png" is uploaded to your GitHub repo!
         try:
             st.image("Screenshot 2026-10-02 173519.png", caption="n8n Automated Data Pipeline & AI Discovery Engine")
         except:
