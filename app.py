@@ -49,7 +49,6 @@ st.markdown("""
 @st.cache_data(ttl=60)
 def load_data():
     try:
-        # REPLACE THIS LINK with your actual "Publish to Web" CSV link from Google Sheets
         sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ72lib3473xj0WxWVDqpSS8kpqI6UPee3oCBSW90Mj6A5cPUnEk_8rnZD3v0AeG4CtUAowG7kUDXa7/pub?gid=402859117&single=true&output=csv"
         df = pd.read_csv(sheet_url) 
         
@@ -95,10 +94,13 @@ with btn_col1:
 with btn_col2:
     if st.button("Check for new comments", type="primary", use_container_width=True):
         try:
-            # requests.post("https://YOUR-NGROK-URL.ngrok-free.app/webhook/episodic-search")
-            st.toast("Triggering n8n pipeline...")
+            response = requests.post("https://ajaymahadik.app.n8n.cloud/webhook/3fa0dae4-a4c5-40ed-b8ed-84db185ede0c", timeout=15)
+            if response.status_code == 200:
+                st.toast("n8n AI pipeline triggered successfully via Webhook!")
+            else:
+                st.toast(f"Pipeline pinged! (Status: {response.status_code})")
         except Exception as e:
-            st.error("Could not reach the webhook.")
+            st.error(f"Could not reach n8n webhook: {e}")
 
 st.write("---")
 
@@ -149,7 +151,6 @@ if not df.empty:
     # --- DASHBOARD TAB ---
     with tab_dashboard:
         if 'Archetype' in df.columns:
-            # ROW 1: Archetypes and Severity
             col_chart1, col_chart2 = st.columns(2)
 
             with col_chart1:
@@ -178,7 +179,6 @@ if not df.empty:
 
             st.write("---")
             
-            # ROW 2: Centered Source Platform Breakdown
             _, col_centered, _ = st.columns([1, 2, 1])
 
             with col_centered:
@@ -219,23 +219,27 @@ if not df.empty:
             
         st.write("")
         
+        # Renders the updated workflow diagram with Webhook integration
         try:
-            st.image("Screenshot 2026-10-02 173519.png", caption="n8n Automated Data Pipeline & AI Discovery Engine")
+            st.image("Screenshot 2026-10-03 145245.png", caption="n8n Automated Data Pipeline with Live Webhook Trigger")
         except:
-            st.info("Upload 'Screenshot 2026-10-02 173519.png' to your GitHub repository to render the architecture diagram here.")
+            st.info("Upload 'Screenshot 2026-10-03 145245.png' to your GitHub repository to render the architecture diagram here.")
             
         st.markdown("<h4 style='color: #202124; font-size: 18px; font-weight: 500; margin-top: 16px;'>1. Backend: n8n AI Discovery Engine</h4>", unsafe_allow_html=True)
         st.markdown("""
-        * **Ingestion:** The pipeline triggers and concurrently fetches raw user reviews from the Play Store, App Store, and Reddit via REST APIs.
-        * **Formatting & Merging:** The raw JSON payloads are formatted into a standardized structure and merged into a single chronological data stream.
-        * **Deduplication:** The system fetches previously stored IDs from Google Sheets to cross-reference new data. An "If" node filters the data to ensure only net-new reviews are processed, conserving AI token costs.
-        * **AI Processing & Rate-Limit Mitigation:** A loop iterates through the new items, sending each raw review to the Gemini API for semantic classification (Archetype, Missing Metadata, Friction Severity). *Architectural Note: This iterative loop was intentionally designed to respect the rate limits of the free-tier Gemini API. In a production environment with an enterprise billing tier, this loop would be bypassed in favor of high-throughput bulk processing to minimize pipeline latency.*
-        * **Database Storage:** The formatted AI outputs are appended directly to the `Clean AI insights` and `Updated Raw_Data` tabs in Google Sheets.
+        * **Dual-Trigger Ingestion:** The workflow supports both manual execution (for schema testing) and an HTTP **Webhook Trigger** for remote, real-time invocation from the frontend. It concurrently fans out to fetch raw user reviews across the Google Play Store, Apple App Store, and Reddit via REST APIs.
+        * **Formatting & Merging:** The diverse raw JSON payloads from each platform are formatted into a standardized schema and merged into a single processing queue.
+        * **Deduplication:** Incoming review IDs are cross-referenced against stored IDs in Google Sheets. An "If" routing condition isolates net-new reviews, eliminating redundant LLM processing and optimizing API token spend.
+        * **AI Processing & Rate-Limit Mitigation:** A loop iterates through new entries, dispatching each raw review to the Gemini API for multi-dimensional classification (Problem Archetype, Forgotten Metadata, and Friction Severity). *Architectural Note: This sequential loop was intentionally structured to accommodate free-tier Gemini rate limits; an enterprise implementation would utilize asynchronous bulk inferencing.*
+        * **Database Persistence:** Validated, model-classified outputs are appended to the `Clean AI insights` and `Updated Raw_Data` sheets.
         """)
+        
+        st.markdown("<h4 style='color: #202124; font-size: 14px; font-weight: 600; margin-top: 8px; color: #5f6368;'>Live Webhook Endpoint (POST):</h4>", unsafe_allow_html=True)
+        st.code("https://ajaymahadik.app.n8n.cloud/webhook/3fa0dae4-a4c5-40ed-b8ed-84db185ede0c", language="text")
         
         st.markdown("<h4 style='color: #202124; font-size: 18px; font-weight: 500; margin-top: 16px;'>2. Frontend: Streamlit Cloud</h4>", unsafe_allow_html=True)
         st.markdown("""
-        * **Stateless Presentation Layer:** The app is deployed via Streamlit Community Cloud and directly tied to the GitHub repository. It does not run heavy ML models locally. 
-        * **Live Syncing:** Using Python's `pandas` library, the frontend fetches the live Google Sheets CSV link. 
-        * **Caching:** Data is cached in the cloud for 60 seconds (`@st.cache_data(ttl=60)`) to ensure fast UI loading times while remaining strictly synced with the backend n8n pipeline.
+        * **Stateless Presentation Layer:** Deployed continuously via Streamlit Community Cloud directly tracking the GitHub repository.
+        * **Bi-directional Integration:** The UI communicates with the backend in two ways: it issues an HTTP POST request to the n8n Webhook to trigger new review ingestion, and consumes published CSV endpoints from Google Sheets via Pandas.
+        * **Dynamic Caching:** Utilizes `@st.cache_data(ttl=60)` for fast client-side performance, paired with an on-demand manual cache clear on summary refresh.
         """)
