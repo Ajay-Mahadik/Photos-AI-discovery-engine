@@ -1,0 +1,1034 @@
+{
+  "name": "GP_AI_discovery_engine",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "=https://itunes.apple.com/us/rss/customerreviews/id=962194608/sortBy=mostRecent/json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -976,
+        256
+      ],
+      "id": "56a73f32-1b80-4c50-8fa7-69931d0b8f9f",
+      "name": "Fetch App Store"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rawInput = $input.first().json;\n\n// 1. Extract payload from 'data' or the root object\nlet payload = rawInput.data !== undefined ? rawInput.data : rawInput;\n\n// 2. Parse the string into a JSON object if received as raw text\nif (typeof payload === 'string') {\n  try {\n    payload = JSON.parse(payload);\n  } catch (error) {\n    payload = {};\n  }\n}\n\n// 3. Extract review entries\nconst entries = payload.feed?.entry || [];\n\n// Apple's first entry (index 0) is app metadata; user reviews start at index 1\nreturn entries.slice(1).map(entry => ({\n  json: {\n    ID: entry.id?.label || `appstore-${Math.random().toString(36).substring(2, 9)}`,\n    Source: 'Apple App Store',\n    Date: entry.updated?.label ? entry.updated.label.split('T')[0] : new Date().toISOString().split('T')[0],\n    URL: entry.author?.uri?.label || 'App Store',\n    Raw_Text: `${entry.title?.label || ''}. ${entry.content?.label || ''}`.trim()\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -752,
+        256
+      ],
+      "id": "997fe289-9a80-44c8-9ac1-b89af36bdbe9",
+      "name": "Format App Store"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst output = [];\n\n// The HTTP Request node outputs the raw SerpApi JSON response here\nconst searchData = items[0].json; \n\n// Extract the array of Google search results\nconst organicResults = searchData.organic_results || [];\n\nfor (const result of organicResults) {\n  // Combine the Reddit thread title and the Google snippet for Gemini to analyze\n  const fullText = `${result.title || ''} \\n ${result.snippet || ''}`.trim();\n  \n  if (fullText.length > 20) {\n    output.push({\n      json: {\n        // The Reddit URL serves as a perfect unique ID for your deduplication loop\n        ID: result.link, \n        Source: 'Reddit (SerpApi)',\n        // SerpApi occasionally includes a 'date' field; otherwise default to today\n        Date: result.date || new Date().toISOString().split('T')[0], \n        URL: result.link,\n        Raw_Text: fullText\n      }\n    });\n  }\n}\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -752,
+        464
+      ],
+      "id": "54dcc925-1710-4792-ba88-4482b612553c",
+      "name": "Format Reddit"
+    },
+    {
+      "parameters": {
+        "url": "https://www.searchapi.io/api/v1/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "engine",
+              "value": "google_play_product"
+            },
+            {
+              "name": "store",
+              "value": "apps"
+            },
+            {
+              "name": "product_id",
+              "value": "com.google.android.apps.photos"
+            },
+            {
+              "name": "all_reviews",
+              "value": "true"
+            },
+            {
+              "name": "api_key",
+              "value": "UK4ZkHxzwFzZJVHbHcDtFYWw"
+            },
+            {
+              "name": "num",
+              "value": "150"
+            },
+            {
+              "name": "next_page_token",
+              "value": "Cr4BIrUBAV8d1P3GHVA4F-kmKNTy5LUsTXvKIEBMF0dN-SXNfgnKnOIoXGB5oHUQ8MP0yWnMhI9fQje5SEKAeT8OFKxNVpTWeskZLad7UHJLsl2hHtbAaxzxsrkTnuNDEjOCVyw0z-TT8CMYuNMCmFWAyzKJJRx6f3SUBfN1-Ltcn46I7J_ybdns9Upx0vdJCAY58Uxeix__esRuO4fJDG8NGK1B1LDqMCgnf_OEul9NdkLFZYvcDqBAdiit0oHWBg"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -976,
+        64
+      ],
+      "id": "c58be964-37d9-430d-83a6-bd19a4aca3a9",
+      "name": "Fetch Play Store"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ensure we are pulling the reviews array from the HTTP node output\nconst reviews = $input.all()[0].json.reviews || [];\n\nreturn reviews.map(review => ({\n  json: {\n    ID: review.id || `playstore-${Math.random().toString(36).substr(2, 9)}`,\n    Source: 'Google Play Store',\n    Date: review.date ? new Date(review.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],\n    URL: 'https://play.google.com/store/apps/details?id=com.google.android.apps.photos',\n    Raw_Text: review.text ? review.text.trim() : '' // Target the correct Play Store payload field\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -752,
+        64
+      ],
+      "id": "54a8b0eb-d965-41a4-9238-303a121a886d",
+      "name": "Format Play Store"
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -544,
+        240
+      ],
+      "id": "4c65bbc8-dfbe-4cf6-a488-870164b25fcf",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1BL9SDztL9T3UV6LlF5v4W8edvz6sd6oSESd33uQfHAU/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Raw_Evidence",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BL9SDztL9T3UV6LlF5v4W8edvz6sd6oSESd33uQfHAU/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -368,
+        256
+      ],
+      "id": "89ea42b3-c8cd-4f07-be60-58d452bb1c83",
+      "name": "Fetch Stored IDs",
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "9RyQ0cSRguV8FiFc",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const existingRows = $('Fetch Stored IDs').all();\nconst existingIDs = new Set(existingRows.map(row => String(row.json.ID || '')));\nconst incomingData = $('Merge').all(); \n\nconst noiseRegex = /storage|subscription|google one|syncing|backup stuck|payment|permanently deleted|recover deleted/i;\nconst output = [];\n\nfor (const item of incomingData) {\n  const data = item.json;\n  if (existingIDs.has(data.ID)) continue;\n  if (!data.Raw_Text || data.Raw_Text.length < 25) continue;\n\n  const isNoise = noiseRegex.test(data.Raw_Text);\n  output.push({\n    json: {\n      ...data,\n      Data_Status: isNoise ? 'Noise' : 'Valid_Retrieval',\n      Archetype: isNoise ? 'N/A' : '',\n      Retained_Memory: isNoise ? 'N/A' : '',\n      Forgotten_Metadata: isNoise ? 'N/A' : '',\n      Fallback_Behavior: isNoise ? 'N/A' : '',\n      Evidence_Quote: isNoise ? 'N/A' : '',\n      Friction_Severity: isNoise ? 'Low' : ''\n    }\n  });\n}\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -192,
+        256
+      ],
+      "id": "077ef1c8-4ce4-48cd-a07c-875d69b56d08",
+      "name": "Deduplicate & Tag Noise"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "aa7af866-1ff6-42c0-bd0b-6c8b204e3c4b",
+              "leftValue": "={{ $json.Data_Status }}",
+              "rightValue": "Valid_Retrieval",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        0,
+        176
+      ],
+      "id": "efc12993-abc4-4917-bcaf-ae406ffd7f41",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3.1-flash-lite",
+          "mode": "list",
+          "cachedResultName": "models/gemini-3.1-flash-lite",
+          "cachedResultUrl": ""
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a Product Manager analyzing visual retrieval breakdowns.\nAnalyze this user text: \"{{ $json.Raw_Text }}\"\n\nOutput ONLY a raw JSON object with this exact structure (no markdown tags):\n{\n  \"Archetype\": \"Ephemeral Utility OR Episodic Experiences OR Visual Fragments\",\n  \"Retained_Memory\": \"Specific details the user remembered\",\n  \"Forgotten_Metadata\": \"Specific details the user forgot\",\n  \"Fallback_Behavior\": \"What they did when search failed\",\n  \"Evidence_Quote\": \"One short exact phrase showing frustration\",\n  \"Friction_Severity\": \"High, Medium, or Low\"\n}\nIMPORTANT: Return raw JSON only. Do NOT use markdown code blocks (do not wrap in ```json or ```). Do not include any introductory or concluding text.\nCRITICAL RULE: You are analyzing user friction for a photo gallery application. If the Raw_Text is about patents, voting, dental directories, OS memory, or is NOT explicitly related to Google Photos, mobile photo galleries, or picture storage, you MUST classify it as noise. Set the Archetype to \"Noise\" and leave all other fields blank."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        288,
+        16
+      ],
+      "id": "a29efb33-dd5c-489b-9226-bafe529f550d",
+      "name": "Message a model",
+      "retryOnFail": true,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Fm4o52ILKr7s19Ih",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1BL9SDztL9T3UV6LlF5v4W8edvz6sd6oSESd33uQfHAU/edit?gid=402859117#gid=402859117",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 402859117,
+          "mode": "list",
+          "cachedResultName": "AI_Insights",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BL9SDztL9T3UV6LlF5v4W8edvz6sd6oSESd33uQfHAU/edit#gid=402859117"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Source",
+              "displayName": "Source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "URL",
+              "displayName": "URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Raw_Text",
+              "displayName": "Raw_Text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Data_Status",
+              "displayName": "Data_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Archetype",
+              "displayName": "Archetype",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Retained_Memory",
+              "displayName": "Retained_Memory",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Forgotten_Metadata",
+              "displayName": "Forgotten_Metadata",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Fallback_Behavior",
+              "displayName": "Fallback_Behavior",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Evidence_Quote",
+              "displayName": "Evidence_Quote",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Friction_Severity",
+              "displayName": "Friction_Severity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        256,
+        176
+      ],
+      "id": "c0403a2a-0662-4030-a6b9-d98558ae9dc5",
+      "name": "Clean AI insights",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "9RyQ0cSRguV8FiFc",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1BL9SDztL9T3UV6LlF5v4W8edvz6sd6oSESd33uQfHAU/edit?gid=402859117#gid=402859117",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Raw_Evidence",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BL9SDztL9T3UV6LlF5v4W8edvz6sd6oSESd33uQfHAU/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Source",
+              "displayName": "Source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "URL",
+              "displayName": "URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Raw_Text",
+              "displayName": "Raw_Text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Data_Status",
+              "displayName": "Data_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Archetype",
+              "displayName": "Archetype",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Retained_Memory",
+              "displayName": "Retained_Memory",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Forgotten_Metadata",
+              "displayName": "Forgotten_Metadata",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Fallback_Behavior",
+              "displayName": "Fallback_Behavior",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Evidence_Quote",
+              "displayName": "Evidence_Quote",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Friction_Severity",
+              "displayName": "Friction_Severity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        304,
+        416
+      ],
+      "id": "a71a96fd-3618-4abd-bea2-580ef7eabdc1",
+      "name": "Updated Raw_Data",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "9RyQ0cSRguV8FiFc",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst output = [];\n\nfor (let i = 0; i < items.length; i++) {\n  const aiData = items[i].json;\n  const originalData = $('Loop Over Items').itemMatching(i).json;\n\n  let parsed = null;\n  let errorReason = \"Parse Error\";\n  let diagnosticDump = \"\";\n\n  // 1. Did the node natively parse the JSON at the root level?\n  if (aiData && typeof aiData === 'object' && aiData.Archetype) {\n    parsed = aiData;\n  } \n  else {\n    // 2. The node didn't parse it. We must find the text string inside the Gemini API wrapper object.\n    let rawAiText = '';\n    \n    if (typeof aiData.text === 'string') {\n      rawAiText = aiData.text; \n    } else if (aiData.content?.parts?.[0]?.text && typeof aiData.content.parts[0].text === 'string') {\n      rawAiText = aiData.content.parts[0].text; // <-- The missing path revealed by your diagnostic dump!\n    } else if (aiData.parts?.[0]?.text && typeof aiData.parts[0].text === 'string') {\n      rawAiText = aiData.parts[0].text; \n    } else if (aiData.candidates?.[0]?.content?.parts?.[0]?.text) {\n      rawAiText = aiData.candidates[0].content.parts[0].text; \n    } else if (typeof aiData.message?.content === 'string') {\n      rawAiText = aiData.message.content; \n    } else if (typeof aiData.content === 'string') {\n      rawAiText = aiData.content;\n    } else if (typeof aiData === 'string') {\n      rawAiText = aiData;\n    }\n\n    // 3. Clean and parse the extracted text\n    if (rawAiText && rawAiText.trim().length > 0) {\n      try {\n        let cleaned = rawAiText.replace(/```json/gi, '').replace(/```/gi, '').trim();\n        const firstBrace = cleaned.indexOf('{');\n        const lastBrace = cleaned.lastIndexOf('}');\n        \n        if (firstBrace !== -1 && lastBrace !== -1) {\n          cleaned = cleaned.substring(firstBrace, lastBrace + 1);\n          parsed = JSON.parse(cleaned);\n        } else {\n          errorReason = \"No JSON brackets found in the extracted text\";\n          diagnosticDump = rawAiText;\n        }\n      } catch (err) {\n        parsed = null;\n        errorReason = \"Invalid JSON syntax inside the text\";\n        diagnosticDump = rawAiText; \n      }\n    } else {\n      errorReason = \"Could not locate the AI text string in the payload\";\n      diagnosticDump = JSON.stringify(aiData); \n    }\n  }\n\n  // 4. Output the final structured row\n  output.push({\n    json: {\n      ID: originalData.ID || '',\n      Source: originalData.Source || '',\n      Date: originalData.Date || '',\n      URL: originalData.URL || '',\n      Raw_Text: originalData.Raw_Text || '',\n      Data_Status: originalData.Data_Status || 'Valid_Retrieval',\n      \n      Archetype: parsed?.Archetype || errorReason,\n      Retained_Memory: parsed?.Retained_Memory || '',\n      Forgotten_Metadata: parsed?.Forgotten_Metadata || '',\n      Fallback_Behavior: parsed?.Fallback_Behavior || '',\n      Evidence_Quote: parsed?.Evidence_Quote || diagnosticDump.substring(0, 500), \n      Friction_Severity: parsed?.Friction_Severity || ''\n    },\n    pairedItem: i\n  });\n}\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        176
+      ],
+      "id": "13bd90da-e232-46f4-8509-7dd2cdbf3c6a",
+      "name": "Format AI Output"
+    },
+    {
+      "parameters": {
+        "batchSize": 10,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "6008edb8-0b66-49a2-b156-475c19fc9c4e",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "amount": 65
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        528,
+        416
+      ],
+      "id": "266e2255-e738-4861-b952-64f4413ee38f",
+      "name": "Wait",
+      "webhookId": "4fc9f4e6-8c32-49c8-a855-537af1317f82"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1BL9SDztL9T3UV6LlF5v4W8edvz6sd6oSESd33uQfHAU/edit?gid=402859117#gid=402859117",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Raw_Evidence",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BL9SDztL9T3UV6LlF5v4W8edvz6sd6oSESd33uQfHAU/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Source",
+              "displayName": "Source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "URL",
+              "displayName": "URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Raw_Text",
+              "displayName": "Raw_Text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Data_Status",
+              "displayName": "Data_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Archetype",
+              "displayName": "Archetype",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Retained_Memory",
+              "displayName": "Retained_Memory",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Forgotten_Metadata",
+              "displayName": "Forgotten_Metadata",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Fallback_Behavior",
+              "displayName": "Fallback_Behavior",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Evidence_Quote",
+              "displayName": "Evidence_Quote",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Friction_Severity",
+              "displayName": "Friction_Severity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        48,
+        416
+      ],
+      "id": "472e7408-fdbf-4c27-b49e-95b95afefb01",
+      "name": "Updated Raw_Data1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "9RyQ0cSRguV8FiFc",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://serpapi.com/search.json",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "engine",
+              "value": "google"
+            },
+            {
+              "name": "api_key",
+              "value": "607fcd727a05f61b61d487419cfc3f20fba7490f1f1538057511b0d9c7af443d"
+            },
+            {
+              "name": "q",
+              "value": "(\"bug\" OR \"broken\" OR \"missing\" OR \"deleted\")"
+            },
+            {
+              "name": "num",
+              "value": "100"
+            },
+            {
+              "name": "as_sitesearch",
+              "value": "https://reddit.com/r/googlephotos"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -976,
+        464
+      ],
+      "id": "8190e4c5-c67b-43e8-a58c-5d47eac0dbe7",
+      "name": "Fetch Reddit "
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "3fa0dae4-a4c5-40ed-b8ed-84db185ede0c",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1360,
+        336
+      ],
+      "id": "b70a8fcf-9c9f-4ae1-ab56-afcf6711fed4",
+      "name": "Webhook",
+      "webhookId": "3fa0dae4-a4c5-40ed-b8ed-84db185ede0c"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1360,
+        144
+      ],
+      "id": "b043f2ff-f227-4fd9-86f5-8950e649a5f3",
+      "name": "When clicking ‘Execute workflow’"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Fetch App Store": {
+      "main": [
+        [
+          {
+            "node": "Format App Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Play Store": {
+      "main": [
+        [
+          {
+            "node": "Format Play Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Play Store": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format App Store": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Format Reddit": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Fetch Stored IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Stored IDs": {
+      "main": [
+        [
+          {
+            "node": "Deduplicate & Tag Noise",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deduplicate & Tag Noise": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Updated Raw_Data1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Format AI Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format AI Output": {
+      "main": [
+        [
+          {
+            "node": "Clean AI insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Updated Raw_Data": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean AI insights": {
+      "main": [
+        [
+          {
+            "node": "Updated Raw_Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Reddit ": {
+      "main": [
+        [
+          {
+            "node": "Format Reddit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Fetch Play Store",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch App Store",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Reddit ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Fetch Play Store",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch App Store",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Reddit ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": -1,
+    "availableInMCP": false
+  },
+  "versionId": "2734fa2c-b86b-4c7a-81a9-d63d721666e4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "cc3e9c35b60120b1c439aa6826fdfae3094ba1aa5c6eac50290ae6544256900e"
+  },
+  "nodeGroups": [],
+  "id": "HpQQkctRRZfTjXIe",
+  "tags": []
+}
