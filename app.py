@@ -61,14 +61,28 @@ def load_data():
 
 df = load_data()
 
-# 4. Dynamically Calculate Metrics
+# 4. Dynamically Calculate Metrics & Percentages
 if not df.empty:
     total_comments = len(df)
     play_store_count = len(df[df['Source'] == 'Google Play Store'])
     reddit_count = len(df[df['Source'] == 'Reddit (SerpApi)'])
     app_store_count = len(df[df['Source'] == 'Apple App Store'])
+    
+    # Dynamic text variables for the Insights tab
+    if 'Forgotten_Metadata' in df.columns and 'Archetype' in df.columns and 'Fallback_Behavior' in df.columns:
+        meta_mismatch_count = df['Forgotten_Metadata'].astype(str).str.contains('Chronological|Date|Time', case=False, na=False).sum()
+        meta_mismatch_pct = round((meta_mismatch_count / total_comments) * 100, 1) if total_comments > 0 else 0.0
+        
+        episodic_count = df['Archetype'].astype(str).str.contains('Episodic', case=False, na=False).sum()
+        episodic_pct = round((episodic_count / total_comments) * 100, 1) if total_comments > 0 else 0.0
+        
+        scrubbing_count = df['Fallback_Behavior'].astype(str).str.contains('Manual|Scroll|Scrub|Grid', case=False, na=False).sum()
+        scrubbing_pct = round((scrubbing_count / total_comments) * 100, 1) if total_comments > 0 else 0.0
+    else:
+        meta_mismatch_pct = episodic_pct = scrubbing_pct = 0.0
 else:
     total_comments = play_store_count = reddit_count = app_store_count = 0
+    meta_mismatch_pct = episodic_pct = scrubbing_pct = 0.0
 
 # 5. Dashboard Header
 st.markdown("<p style='color: #5f6368; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;'>Google Photos Core Experience · Public Feedback</p>", unsafe_allow_html=True)
@@ -112,10 +126,11 @@ if not df.empty:
     with tab_insights:
         st.markdown("<h3 style='color: #202124; font-size: 20px; font-weight: 500;'>Core Retrieval Breakdown</h3>", unsafe_allow_html=True)
         
+        # These bullet points now dynamically read from the live Pandas calculations above
         st.markdown(f"""
-        * **The Metadata Mismatch:** **23.5%** of failures stem from broken chronological EXIF data caused by third-party sharing (WhatsApp, AirDrop) overwriting original capture dates.
-        * **Episodic Memories Dominate:** **77%** of retrieval friction stems from users trying to find these specific life events using visual or contextual memory, rather than exact transfer dates.
-        * **The Compute & Churn Tax:** When search fails, **13.5%** of users resort to high-friction manual grid scrubbing, heavily taxing cloud compute infrastructure (thumbnail rendering) and degrading platform trust.
+        * **The Metadata Mismatch:** **{meta_mismatch_pct}%** of failures stem from broken chronological EXIF data caused by third-party sharing (WhatsApp, AirDrop) overwriting original capture dates.
+        * **Episodic Memories Dominate:** **{episodic_pct}%** of retrieval friction stems from users trying to find these specific life events using visual or contextual memory, rather than exact transfer dates.
+        * **The Compute & Churn Tax:** When search fails, **{scrubbing_pct}%** of users resort to high-friction manual grid scrubbing, heavily taxing cloud compute infrastructure (thumbnail rendering) and degrading platform trust.
         """)
         
         st.write("---") 
@@ -125,19 +140,19 @@ if not df.empty:
         st.write("")
         
         with st.expander("1. What kinds of old photos do users struggle to retrieve?"):
-            st.write("Users primarily struggle with retrieving shared **Episodic Experiences (77.0%)**. These are specific life events (e.g., weddings, trips) where the user was present but received the media retroactively via third-party platforms like WhatsApp or AirDrop, breaking the continuity of their primary timeline.")
+            st.write(f"Users primarily struggle with retrieving shared **Episodic Experiences ({episodic_pct}%)**. These are specific life events (e.g., weddings, trips) where the user was present but received the media retroactively via third-party platforms like WhatsApp or AirDrop, breaking the continuity of their primary timeline.")
             
         with st.expander("2. What information do people actually remember about a photo?"):
             st.write("Users retain contextual, multi-variable visual anchors. The most common retained memories are visual characteristics (10.4%), co-occurring people/faces (10.2%), and emotional significance (8.2%). They remember the *cast of characters* and the *wardrobe/environment*, not the exact date the file was saved.")
             
         with st.expander("3. What information have they forgotten (or what metadata broke down)?"):
-            st.write("The primary failure point is the **Metadata vs. Episodic Memory Mismatch** driven by chronological metadata failure (23.5%). When photos are downloaded via messaging apps, the original capture date is overwritten by the transfer date. The system indexes the photo in the wrong temporal cluster, rendering it invisible to chronological searches.")
+            st.write(f"The primary failure point is the **Metadata vs. Episodic Memory Mismatch** driven by chronological metadata failure ({meta_mismatch_pct}%). When photos are downloaded via messaging apps, the original capture date is overwritten by the transfer date. The system indexes the photo in the wrong temporal cluster, rendering it invisible to chronological searches.")
             
         with st.expander("4. How do users formulate searches when their memory is incomplete?"):
             st.write("Users attempt broad, descriptive episodic searches (e.g., *'Goa trip with Rahul'*). Because current search architectures rigidly cross-reference keywords with localized EXIF temporal data, the system successfully finds the photos the user took natively, but completely filters out the visually related WhatsApp photos downloaded weeks later.")
             
         with st.expander("5. What are the most common fallback behaviors when search fails?"):
-            st.write("The dominant fallback is high-friction manual timeline grid scrubbing (13.5%), followed by deep-diving into unorganized, local device folders like 'WhatsApp Images.' Users spend up to 30 minutes manually scanning for visual patterns because they no longer trust the search bar to handle temporal desyncs.")
+            st.write(f"The dominant fallback is high-friction manual timeline grid scrubbing ({scrubbing_pct}%), followed by deep-diving into unorganized, local device folders like 'WhatsApp Images.' Users spend up to 30 minutes manually scanning for visual patterns because they no longer trust the search bar to handle temporal desyncs.")
             
         with st.expander("6. What is the business cost of these retrieval failures?"):
             st.write("The friction is severe, with **84.2% of all classified retrieval issues marked as High Severity**. When users are forced into manual 15-minute scrolling sessions, it heavily taxes cloud compute infrastructure (rendering thousands of thumbnails) and severely degrades user trust, pushing them to view the app as a dumping ground rather than an intelligent memory assistant.")
@@ -219,7 +234,6 @@ if not df.empty:
             
         st.write("")
         
-        # Renders the updated workflow diagram with Webhook integration
         try:
             st.image("Screenshot 2026-10-03 145245.png", caption="n8n Automated Data Pipeline with Live Webhook Trigger")
         except:
